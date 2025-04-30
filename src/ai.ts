@@ -39,6 +39,8 @@ export async function analyzeIngredientsAI(
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://your-domain.com',
+          'X-Title': 'GDM Bot',
         },
         body: JSON.stringify(body),
       }
@@ -57,12 +59,22 @@ export async function analyzeIngredientsAI(
     const result = await response.json()
     console.log('API Response:', JSON.stringify(result, null, 2))
 
-    if (!result.choices || !result.choices[0] || !result.choices[0].message) {
+    let content = null
+
+    if (result.choices?.[0]?.message?.content) {
+      content = result.choices[0].message.content
+    } else if (result.response) {
+      content = result.response
+    } else if (typeof result === 'string') {
+      content = result
+    }
+
+    if (!content) {
       console.error('Unexpected API response format:', result)
       return 'Ошибка: неверный формат ответа от AI'
     }
 
-    return result.choices[0].message.content
+    return content
   } catch (error) {
     console.error('Error in analyzeIngredientsAI:', error)
     return 'Произошла ошибка при анализе состава'

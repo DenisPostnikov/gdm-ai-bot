@@ -78,12 +78,16 @@ bot.on('photo', async (msg) => {
     const file = await bot.getFile(photo.file_id)
     const fileUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`
     const res = await axios.get(fileUrl, { responseType: 'arraybuffer' })
-    const filePath = path.join(__dirname, 'last_photo.jpg')
+
+    // Используем временную директорию Render
+    const tempDir = process.env.TEMP_DIR || '/tmp'
+    const filePath = path.join(tempDir, `photo_${Date.now()}.jpg`)
+    const processedPath = path.join(tempDir, `processed_${Date.now()}.jpg`)
 
     fs.writeFileSync(filePath, res.data)
-    await preprocessImage(filePath, 'processed.jpg')
+    await preprocessImage(filePath, processedPath)
 
-    const text = await recognizeText('processed.jpg')
+    const text = await recognizeText(processedPath)
 
     if (!text.trim()) {
       bot.sendMessage(
@@ -100,6 +104,14 @@ bot.on('photo', async (msg) => {
     bot.sendMessage(chatId, `ИИ-анализ состава продукта: \n${analysis}`, {
       parse_mode: 'HTML',
     })
+
+    // Очищаем временные файлы
+    try {
+      fs.unlinkSync(filePath)
+      fs.unlinkSync(processedPath)
+    } catch (cleanupError) {
+      console.error('Error cleaning up files:', cleanupError)
+    }
   } catch (error) {
     console.error(error)
     bot.sendMessage(
