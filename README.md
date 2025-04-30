@@ -1,4 +1,4 @@
-# :robot_face: GDM AI Telegram Bot
+# GDM AI Telegram Bot
 
 A Telegram bot that helps women with gestational diabetes mellitus (GDM) make informed food choices by analyzing ingredient lists from product photos. Built with Node.js and TypeScript, this bot uses OCR and AI to classify products based on their glycemic index.
 
