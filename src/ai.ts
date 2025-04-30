@@ -36,6 +36,5 @@ export async function analyzeIngredientsAI(
     }
   )
   const result = await response.json()
-  console.log(99, result)
   return result.choices[0]?.message?.content || 'Ошибка в ответе AI'
 }
