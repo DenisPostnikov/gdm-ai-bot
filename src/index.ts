@@ -3,6 +3,7 @@ import axios from 'axios'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as dotenv from 'dotenv'
+import express from 'express'
 
 import { recognizeText, preprocessImage } from './ocr'
 import { analyzeIngredientsAI } from './ai'
@@ -10,18 +11,43 @@ import { analyzeIngredientsAI } from './ai'
 dotenv.config()
 
 const token = process.env.TELEGRAM_BOT_TOKEN
+const port = process.env.PORT || 3000
 
 if (!token) {
   throw new Error('TELEGRAM_BOT_TOKEN is not set')
 }
 
-const bot = new TelegramBot(token, { polling: true })
-// bot.onText(/\/start/, (msg) => {
-//   bot.sendMessage(
-//     msg.chat.id,
-//     'Привет! Пришли мне фото состава продукта, и я определю, можно ли его есть при ГСД.'
-//   )
-// })
+const app = express()
+const bot = new TelegramBot(token)
+
+// Middleware to parse JSON
+app.use(express.json())
+
+// Webhook endpoint
+app.post(`/webhook/${token}`, (req, res) => {
+  bot.processUpdate(req.body)
+  res.sendStatus(200)
+})
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.sendStatus(200)
+})
+
+// Start the server
+app.listen(port, () => {
+  console.log(`Server is running on port ${port}`)
+})
+
+// Set webhook
+const webhookUrl = process.env.WEBHOOK_URL
+if (webhookUrl) {
+  bot
+    .setWebHook(`${webhookUrl}/webhook/${token}`)
+    .then(() => console.log('Webhook set successfully'))
+    .catch((err) => console.error('Error setting webhook:', err))
+}
+
 bot.on('message', (msg) => {
   const chatId = msg.chat.id
 
@@ -39,6 +65,7 @@ bot.on('message', (msg) => {
     )
   }
 })
+
 bot.on('photo', async (msg) => {
   const chatId = msg.chat.id
   const photo = msg.photo?.pop()
