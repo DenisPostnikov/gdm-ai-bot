@@ -1,5 +1,34 @@
 import { forbiddenIngredients, forbiddenProducts } from './forbiddenIngredients'
 
+async function checkRateLimits(apiKey: string): Promise<{
+  remaining: number
+  isFreeTier: boolean
+  limit: number | null
+}> {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/auth/key', {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to check rate limits')
+    }
+
+    const data = await response.json()
+    return {
+      remaining: data.data.limit ? data.data.limit - data.data.usage : Infinity,
+      isFreeTier: data.data.is_free_tier,
+      limit: data.data.limit,
+    }
+  } catch (error) {
+    console.error('Error checking rate limits:', error)
+    return { remaining: 0, isFreeTier: true, limit: null }
+  }
+}
+
 export async function analyzeIngredientsAI(
   ingredients: string
 ): Promise<string> {
@@ -7,6 +36,17 @@ export async function analyzeIngredientsAI(
   if (!apiKey) {
     console.error('OPENROUTER_API_KEY is not set')
     return 'Ошибка: API ключ не установлен'
+  }
+
+  // Check rate limits before sending the request
+  const limits = await checkRateLimits(apiKey)
+
+  if (limits.remaining <= 0) {
+    if (limits.isFreeTier) {
+      return 'Извините, достигнут дневной лимит бесплатных запросов. Пожалуйста, попробуйте завтра или обратитесь к администратору.'
+    } else {
+      return 'Извините, достигнут лимит запросов. Пожалуйста, обратитесь к администратору.'
+    }
   }
 
   const body = {
@@ -31,7 +71,6 @@ export async function analyzeIngredientsAI(
   }
 
   try {
-    console.log('Sending request to OpenRouter API...')
     const response = await fetch(
       'https://openrouter.ai/api/v1/chat/completions',
       {
@@ -53,11 +92,15 @@ export async function analyzeIngredientsAI(
         statusText: response.statusText,
         body: errorText,
       })
+
+      if (response.status === 429 || response.status === 402) {
+        return 'Извините, достигнут дневной лимит бесплатных запросов. Пожалуйста, попробуйте завтра или обратитесь к администратору.'
+      }
+
       return 'Ошибка при обращении к AI сервису'
     }
 
     const result = await response.json()
-    console.log('API Response:', JSON.stringify(result, null, 2))
 
     let content = null
 

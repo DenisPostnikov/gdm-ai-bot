@@ -79,7 +79,7 @@ bot.on('photo', async (msg) => {
     const fileUrl = `https://api.telegram.org/file/bot${token}/${file.file_path}`
     const res = await axios.get(fileUrl, { responseType: 'arraybuffer' })
 
-    // Используем временную директорию Render
+    // Use temporary directory from Render
     const tempDir = process.env.TEMP_DIR || '/tmp'
     const filePath = path.join(tempDir, `photo_${Date.now()}.jpg`)
     const processedPath = path.join(tempDir, `processed_${Date.now()}.jpg`)
@@ -100,12 +100,15 @@ bot.on('photo', async (msg) => {
     bot.sendMessage(chatId, 'Текст распознан! Анализирую состав...')
 
     const analysis = await analyzeIngredientsAI(text)
+    const message = analysis.includes(
+      'достигнут дневной лимит бесплатных запросов'
+    )
+      ? analysis
+      : `ИИ-анализ состава продукта: \n${analysis}`
 
-    bot.sendMessage(chatId, `ИИ-анализ состава продукта: \n${analysis}`, {
-      parse_mode: 'HTML',
-    })
+    bot.sendMessage(chatId, message, { parse_mode: 'HTML' })
 
-    // Очищаем временные файлы
+    // Clean up temporary files
     try {
       fs.unlinkSync(filePath)
       fs.unlinkSync(processedPath)
